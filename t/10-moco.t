@@ -386,4 +386,13 @@ sub retrieve_or_create : Tests {
     is $u2->name, 'one-o-one';
 }
 
+sub object_ids : Tests {
+    is_deeply (Blog::Entry->keys, ['uri']);
+    my $e = Blog::Entry->retrieve(1);
+    is_deeply ($e->object_ids, [
+        'Blog::Entry-entry_id-1',
+        'Blog::Entry-uri-http://test.com/entry-1'
+    ]);
+}
+
 1;

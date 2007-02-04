@@ -7,7 +7,7 @@ use MoCo::Cache;
 use Carp;
 use Class::Trigger;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 our $AUTOLOAD;
 our $cache_status = {
     retrieve_count => 0,
@@ -22,11 +22,12 @@ our $cache_status = {
 #  retrieve_all_count, has_many_count, has_many_cache_count,
 
 __PACKAGE__->mk_classdata($_) for qw(cache_object db_object);
-__PACKAGE__->mk_classdata($_) for qw(table primary_keys);
+__PACKAGE__->mk_classdata($_) for qw(table primary_keys keys);
 __PACKAGE__->add_trigger(after_create => \&_after_create);
 __PACKAGE__->add_trigger(after_delete => \&_after_delete);
 __PACKAGE__->add_trigger(after_update => \&_after_update);
 
+__PACKAGE__->keys([]);
 __PACKAGE__->cache_object('MoCo::Cache');
 
 my ($cache,$db,$session);
@@ -48,6 +49,7 @@ sub end_session {
     my $class = shift;
     $session or return;
     $_->save for @{$session->{changed_objects}};
+    $cache_status->{retrieved_oids} = [];
     $session = undef;
 }
 
@@ -78,7 +80,7 @@ sub _flush_belongs_to {
 sub _after_create {
     my ($class, $self) = @_;
     $self or return;
-    $class->cache($self->object_id, $self);
+    $class->cache($_, $self) for @{$self->object_ids};
     $class->_flush_belongs_to($self);
 }
 
@@ -86,7 +88,7 @@ sub _after_delete {
     my ($class, $self) = @_;
     $self or return;
     #warn 'delete '.$self->object_id;
-    $class->flush_cache($self->object_id);
+    $class->flush_cache($self);
     $class->_flush_belongs_to($self);
 }
 
@@ -119,7 +121,7 @@ sub object_id {
         return $self->{object_id};
     } elsif ($self) {
         for (sort @{$class->primary_keys}) {
-            $self->{$_} or croak "$_ is undefined for $self";
+            $self->{$_} or warn "$_ is undefined for $self" and return;
             $key .= "-$_-" . $self->{$_};
         }
         $key = $class . $key;
@@ -152,9 +154,9 @@ sub db {
 
 sub flush_cache {
     my $class = shift;
-    my $oid = shift or return;
-    #warn "flush cache $oid";
-    $cache->remove($oid);
+    my $o = shift or return;
+    #warn "flush cache $o";
+    $cache->remove($_) for @{$o->object_ids};
 }
 
 sub retrieve {
@@ -168,7 +170,7 @@ sub retrieve {
         return $class->cache($oid);
     } else {
         #warn "use db $oid";
-        push @{$cs->{retrieved_oids}}, $oid;
+        push @{$cs->{retrieved_oids}}, $oid if $class->is_in_session;
         my %args = $_[1] ? @_ : ($class->primary_keys->[0] => $_[0]);
         my $res = $class->db->select($class->table,'*',\%args);
         my $h = $res->[0];
@@ -228,6 +230,7 @@ sub create {
         my $pk = $class->primary_keys->[0];
         unless ($args{$pk}) {
             my $id = $class->db->last_insert_id;
+            $o->set($pk => $id);
         }
     }
     $class->call_trigger('after_create', $o);
@@ -299,12 +302,9 @@ sub AUTOLOAD {
         *$AUTOLOAD = $class->_has_a_handler($method);
     } elsif ($class->has_many->{$method}) {
         *$AUTOLOAD = $class->_has_many_handler($method);
-    } elsif (defined $self->{$method}) {
-#        *$AUTOLOAD = sub { shift->{$method} };
-        *$AUTOLOAD = sub { shift->param($method, @_) };
+#    } elsif (defined $self->{$method}) {
     } else {
-        warn "undefined method $method";
-        return;
+        *$AUTOLOAD = sub { shift->param($method, @_) };
     }
     goto &$AUTOLOAD;
 }
@@ -468,6 +468,17 @@ sub save {
     }
 }
 
+sub object_ids { # returns all possible oids
+    my $self = shift;
+    my $class = ref $self or return;
+    my @oids = ($self->object_id);
+    for my $key (@{$class->keys}) {
+        next unless $self->{$key};
+        push @oids, $class->object_id($key => $self->{$key});
+    }
+    return \@oids;
+}
+
 1;
 
 __END__
@@ -518,6 +529,7 @@ MoCo - Light & Fast Model Component
 
   __PACKAGE__->table('entry');
   __PACKAGE__->primary_keys(['entry_id']);
+  __PACKAGE__->keys(['uri']);
   __PACKAGE__->has_a(
       user => 'Blog::User',
       { key => 'user_id' }
@@ -592,7 +604,7 @@ Light & Fast Model Component
 
 =head1 SEE ALSO
 
-L<Class::DBI>, L<Cache>, L<SQL::Abstract>
+L<SQL::Abstract>, L<Class::DBI>, L<Cache>,
 
 =head1 AUTHOR
 

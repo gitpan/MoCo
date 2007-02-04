@@ -148,7 +148,8 @@ sub execute {
         }
     }
     if ($sql =~ /^insert/io) {
-        $class->last_insert_id($dbh->last_insert_id(undef,undef,undef,undef));
+        $class->last_insert_id($dbh->last_insert_id(undef,undef,undef,undef) ||
+                           $dbh->{'mysql_insertid'});
     }
     return !$sth->err;
 }
@@ -175,7 +176,7 @@ MoCo::DataBase - Data Base Handler for MoCo
 
 =head1 SEE ALSO
 
-L<MoCo>
+L<MoCo>, L<SQL::Abstract>
 
 =head1 AUTHOR
 

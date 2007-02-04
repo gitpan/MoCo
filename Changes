@@ -1,6 +1,12 @@
-Revision history for Perl extension Class::Moco.
+Revision history for Perl extension MoCo.
 
-0.04  Tue Jan 30
+0.05  Sat Feb 3
+        - fixed bug that null cache with other key isn't flushed when a new record is inserted
+        - Added MoCo->keys and changed flush_cache to flush all possible oids.
+        - fixed bug in create to set primary key
+	- changed croak in object_id to warning for new created object
+
+0.04  Wed Jan 31
         - changed name from Class::Moco to MoCo
 	- added session & delay saving feature in MoCo.
 	- changed AUTOLOAD behavior when undefined attr is called

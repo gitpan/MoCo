@@ -27,18 +27,19 @@ __PACKAGE__->execute(<<EOF);
 CREATE TABLE entry (
   entry_id INTEGER PRIMARY KEY,
   user_id INTEGER,
+  uri text,
   title text,
   body text
 )
 EOF
 
 my @entries = (
-    [qw(1 1 jkondo-1 hello)],
-    [qw(2 1 jkondo-2 world)],
-    [qw(3 2 reikon-1 hello)],
-    [qw(4 3 cinnamon-1 dog)],
+    [qw(1 1 http://test.com/entry-1 jkondo-1 hello)],
+    [qw(2 1 http://test.com/entry-2 jkondo-2 world)],
+    [qw(3 2 http://test.com/entry-3 reikon-1 hello)],
+    [qw(4 3 http://test.com/entry-4 cinnamon-1 dog)],
 );
-__PACKAGE__->execute('insert into entry values (?,?,?,?)',undef,$_)
+__PACKAGE__->execute('insert into entry values (?,?,?,?,?)',undef,$_)
     for @entries;
 
 __PACKAGE__->execute(<<EOF);

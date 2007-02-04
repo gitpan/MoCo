@@ -40,7 +40,7 @@ sub remove {
 
 =head1 NAME
 
-MoCo::Cache - Cache for MoCo
+MoCo::Cache - Simple Cache for MoCo
 
 =head1 SYNOPSIS
 
@@ -53,7 +53,7 @@ MoCo::Cache - Cache for MoCo
 
 =head1 SEE ALSO
 
-L<MoCo>
+L<MoCo>, L<Cache>
 
 =head1 AUTHOR
 
